@@ -2279,3 +2279,219 @@ button {
 /* Warning icon color */
 .stat-icon.warning { color: var(--warning); }
 .stat-icon.success { color: var(--success); }
+
+/* =========================================================
+   BUG FIX OVERRIDES - sidebar/nav alignment, login icons,
+   notification dropdown, expiry inputs. Appended last so
+   they take precedence.
+   ========================================================= */
+
+/* Sidebar width + collapse behavior */
+:root {
+  --sidebar-width-open: 260px;
+  --sidebar-width-closed: 72px;
+}
+.sidebar {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.sidebar.open { width: var(--sidebar-width-open); }
+.sidebar.closed { width: var(--sidebar-width-closed); }
+.main-content { margin-left: var(--sidebar-width-open); }
+.sidebar.closed + .main-content { margin-left: var(--sidebar-width-closed); }
+
+/* Sidebar header: keep toggle aligned in both open and closed */
+.sidebar-header {
+  min-height: 64px;
+  padding: 16px;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+.sidebar-brand {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.sidebar.closed .sidebar-brand { justify-content: center; }
+.sidebar.closed .sidebar-brand span { display: none; }
+.sidebar-toggle {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+}
+.sidebar-toggle:hover { background: var(--bg); color: var(--text-dark); }
+
+/* Nav items: stable alignment; collapse hides labels cleanly */
+a.nav-item,
+.sidebar-nav a.nav-item,
+.sidebar-footer a.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  color: var(--text-light);
+  font-weight: 500;
+  width: 100%;
+  text-align: left;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+  overflow: hidden;
+  min-height: 40px;
+}
+a.nav-item > svg { flex: 0 0 auto; }
+.nav-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.sidebar.closed a.nav-item { justify-content: center; padding: 10px 0; gap: 0; }
+.sidebar.closed .nav-label { display: none; }
+.sidebar-nav {
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sidebar-footer {
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Keep sidebar collapsed behavior on small screens too */
+@media (max-width: 1024px) {
+  .sidebar { width: var(--sidebar-width-closed); }
+  .sidebar.open { width: var(--sidebar-width-open); }
+  .main-content { margin-left: var(--sidebar-width-closed); }
+  .sidebar.open + .main-content { margin-left: var(--sidebar-width-open); }
+}
+
+/* Top bar slight polish */
+.top-bar { min-height: 64px; z-index: 40; }
+
+/* Login page icon centering + input padding */
+.input-wrapper { position: relative; display: flex; align-items: center; }
+.input-wrapper .input-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-light);
+  pointer-events: none;
+}
+.input-wrapper input {
+  padding: 12px 44px 12px 42px;
+}
+.input-wrapper .toggle-password {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  color: var(--text-light);
+  padding: 4px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Notification dropdown */
+.notif-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.notif-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 360px;
+  max-height: 520px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  z-index: 80;
+  padding: 12px;
+}
+.notif-header {
+  padding: 4px 6px 10px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.notif-header strong { color: var(--text-dark); font-size: 15px; }
+.notif-sub { font-size: 12px; color: var(--text-light); }
+
+.notif-section { margin-bottom: 10px; }
+.notif-section-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--bg);
+  border-radius: 6px;
+  padding: 4px 8px;
+  margin-bottom: 6px;
+}
+.notif-item {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 10px;
+  border-radius: 6px;
+  margin-bottom: 4px;
+  transition: background 0.15s;
+}
+.notif-item:hover { background: var(--bg); }
+.notif-title { font-size: 13px; font-weight: 600; color: var(--text-dark); }
+.notif-detail { font-size: 12px; color: var(--text-light); margin-top: 2px; }
+
+.notif-empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 12px;
+  color: var(--text-light);
+  font-size: 13px;
+  justify-content: center;
+}
+.notif-empty svg { color: var(--success); }
+
+.notif-actions {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.btn-sm {
+  padding: 8px 12px;
+  font-size: 13px;
+  border-radius: 6px;
+}
+.notif-email-status {
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+.notif-email-status.ok { background: #dcfce7; color: #166534; }
+.notif-email-status.err { background: #fee2e2; color: #991b1b; }
+

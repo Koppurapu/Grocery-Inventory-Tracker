@@ -1,10 +1,12 @@
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
+const bcrypt = require('bcryptjs');
+const nodemailer = require('nodemailer');
 require('dotenv').config();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 8001;
 
 app.use(cors());
 app.use(express.json());
@@ -12,6 +14,10 @@ app.use(express.json());
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL
 });
+
+function isBcryptHash(str) {
+  return typeof str === 'string' && /^\$2[aby]\$/.test(str);
+}
 
 async function initDB() {
   const client = await pool.connect();
@@ -21,7 +27,7 @@ async function initDB() {
         id SERIAL PRIMARY KEY,
         name VARCHAR(100) NOT NULL
       );
-      
+
       CREATE TABLE IF NOT EXISTS suppliers (
         id SERIAL PRIMARY KEY,
         name VARCHAR(100) NOT NULL,
@@ -31,7 +37,7 @@ async function initDB() {
         total_orders INTEGER DEFAULT 0,
         rating DECIMAL(2,1) DEFAULT 0
       );
-      
+
       CREATE TABLE IF NOT EXISTS warehouses (
         id SERIAL PRIMARY KEY,
         name VARCHAR(100) NOT NULL,
@@ -40,7 +46,7 @@ async function initDB() {
         items INTEGER DEFAULT 0,
         capacity INTEGER DEFAULT 0
       );
-      
+
       CREATE TABLE IF NOT EXISTS customers (
         id SERIAL PRIMARY KEY,
         name VARCHAR(100) NOT NULL,
@@ -51,7 +57,7 @@ async function initDB() {
         total_spent DECIMAL(12,2) DEFAULT 0,
         balance DECIMAL(12,2) DEFAULT 0
       );
-      
+
       CREATE TABLE IF NOT EXISTS items (
         id SERIAL PRIMARY KEY,
         name VARCHAR(100) NOT NULL,
@@ -66,7 +72,7 @@ async function initDB() {
         reorder_level INTEGER DEFAULT 50,
         last_updated DATE DEFAULT CURRENT_DATE
       );
-      
+
       CREATE TABLE IF NOT EXISTS orders (
         id VARCHAR(20) PRIMARY KEY,
         customer VARCHAR(100),
@@ -75,7 +81,7 @@ async function initDB() {
         status VARCHAR(20) DEFAULT 'Pending',
         items JSONB
       );
-      
+
       CREATE TABLE IF NOT EXISTS purchase_orders (
         id VARCHAR(20) PRIMARY KEY,
         supplier VARCHAR(100),
@@ -85,13 +91,19 @@ async function initDB() {
         status VARCHAR(20) DEFAULT 'Pending',
         items JSONB
       );
-      
+
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         email VARCHAR(100) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
         name VARCHAR(100)
       );
+    `);
+
+    // Idempotent ALTER TABLE for mfg_date and expiry_date on items
+    await client.query(`
+      ALTER TABLE items ADD COLUMN IF NOT EXISTS mfg_date DATE;
+      ALTER TABLE items ADD COLUMN IF NOT EXISTS expiry_date DATE;
     `);
 
     const catCount = await client.query('SELECT COUNT(*) FROM categories');
@@ -102,7 +114,7 @@ async function initDB() {
     const supCount = await client.query('SELECT COUNT(*) FROM suppliers');
     if (parseInt(supCount.rows[0].count) === 0) {
       await client.query(`
-        INSERT INTO suppliers (name, email, phone, address, total_orders, rating) VALUES 
+        INSERT INTO suppliers (name, email, phone, address, total_orders, rating) VALUES
         ('TechSupply Co', 'orders@techsupply.com', '555-1111', '100 Tech Lane, Shenzhen', 45, 4.8),
         ('CableWorld', 'sales@cableworld.com', '555-2222', '200 Cable St, Taipei', 32, 4.5),
         ('Office Furnishings', 'orders@officefurn.com', '555-3333', '300 Furnish Ave, Houston', 18, 4.2);
@@ -112,7 +124,7 @@ async function initDB() {
     const whCount = await client.query('SELECT COUNT(*) FROM warehouses');
     if (parseInt(whCount.rows[0].count) === 0) {
       await client.query(`
-        INSERT INTO warehouses (name, address, manager, items, capacity) VALUES 
+        INSERT INTO warehouses (name, address, manager, items, capacity) VALUES
         ('Main Warehouse', '123 Industrial Ave, New York, NY', 'John Smith', 847, 85),
         ('West Coast Hub', '456 Commerce Blvd, Los Angeles, CA', 'Sarah Johnson', 562, 62),
         ('Midwest Center', '789 Logistics Way, Chicago, IL', 'Mike Brown', 310, 48);
@@ -122,7 +134,7 @@ async function initDB() {
     const custCount = await client.query('SELECT COUNT(*) FROM customers');
     if (parseInt(custCount.rows[0].count) === 0) {
       await client.query(`
-        INSERT INTO customers (name, email, phone, address, orders, total_spent, balance) VALUES 
+        INSERT INTO customers (name, email, phone, address, orders, total_spent, balance) VALUES
         ('Acme Corp', 'contact@acme.com', '555-1234', '100 Main St, New York, NY', 12, 15432.00, 1234.50),
         ('TechStart Inc', 'info@techstart.com', '555-5678', '200 Tech Blvd, San Francisco, CA', 8, 8567.00, 567.00),
         ('Global Solutions', 'sales@global.com', '555-9012', '300 Business Park, Chicago, IL', 23, 34890.00, 2340.00);
@@ -132,20 +144,20 @@ async function initDB() {
     const itemCount = await client.query('SELECT COUNT(*) FROM items');
     if (parseInt(itemCount.rows[0].count) === 0) {
       await client.query(`
-        INSERT INTO items (name, sku, quantity, price, cost, status, location, category, supplier, reorder_level, last_updated) VALUES 
-        ('Wireless Mouse', 'WM-001', 145, 29.99, 15.00, 'In Stock', 'Main Warehouse', 'Electronics', 'TechSupply Co', 50, CURRENT_DATE),
-        ('Mechanical Keyboard', 'MK-002', 32, 89.99, 45.00, 'Low Stock', 'Main Warehouse', 'Electronics', 'TechSupply Co', 50, CURRENT_DATE),
-        ('USB-C Cable', 'UC-003', 500, 12.99, 5.00, 'In Stock', 'West Coast Hub', 'Accessories', 'CableWorld', 100, CURRENT_DATE),
-        ('Monitor Stand', 'MS-004', 0, 45.99, 22.00, 'Out of Stock', 'Main Warehouse', 'Furniture', 'Office Furnishings', 20, CURRENT_DATE),
-        ('Webcam HD', 'WC-005', 78, 59.99, 30.00, 'In Stock', 'West Coast Hub', 'Electronics', 'TechSupply Co', 30, CURRENT_DATE),
-        ('Office Chair', 'OC-006', 25, 199.99, 95.00, 'In Stock', 'Midwest Center', 'Furniture', 'Office Furnishings', 10, CURRENT_DATE);
+        INSERT INTO items (name, sku, quantity, price, cost, status, location, category, supplier, reorder_level, mfg_date, expiry_date, last_updated) VALUES
+        ('Wireless Mouse', 'WM-001', 145, 29.99, 15.00, 'In Stock', 'Main Warehouse', 'Electronics', 'TechSupply Co', 50, CURRENT_DATE - INTERVAL '90 days', CURRENT_DATE + INTERVAL '300 days', CURRENT_DATE),
+        ('Mechanical Keyboard', 'MK-002', 32, 89.99, 45.00, 'Low Stock', 'Main Warehouse', 'Electronics', 'TechSupply Co', 50, CURRENT_DATE - INTERVAL '60 days', CURRENT_DATE + INTERVAL '10 days', CURRENT_DATE),
+        ('USB-C Cable', 'UC-003', 500, 12.99, 5.00, 'In Stock', 'West Coast Hub', 'Accessories', 'CableWorld', 100, CURRENT_DATE - INTERVAL '30 days', CURRENT_DATE + INTERVAL '400 days', CURRENT_DATE),
+        ('Monitor Stand', 'MS-004', 0, 45.99, 22.00, 'Out of Stock', 'Main Warehouse', 'Furniture', 'Office Furnishings', 20, NULL, NULL, CURRENT_DATE),
+        ('Webcam HD', 'WC-005', 78, 59.99, 30.00, 'In Stock', 'West Coast Hub', 'Electronics', 'TechSupply Co', 30, CURRENT_DATE - INTERVAL '120 days', CURRENT_DATE + INTERVAL '12 days', CURRENT_DATE),
+        ('Office Chair', 'OC-006', 25, 199.99, 95.00, 'In Stock', 'Midwest Center', 'Furniture', 'Office Furnishings', 10, NULL, NULL, CURRENT_DATE);
       `);
     }
 
     const orderCount = await client.query('SELECT COUNT(*) FROM orders');
     if (parseInt(orderCount.rows[0].count) === 0) {
       await client.query(`
-        INSERT INTO orders (id, customer, date, total, status, items) VALUES 
+        INSERT INTO orders (id, customer, date, total, status, items) VALUES
         ('ORD-001', 'Acme Corp', '2024-01-15', 1249.99, 'Fulfilled', '[{"itemId":1,"quantity":10,"price":29.99},{"itemId":2,"quantity":10,"price":89.99}]'),
         ('ORD-002', 'TechStart Inc', '2024-01-15', 567.50, 'Processing', '[{"itemId":3,"quantity":25,"price":12.99},{"itemId":5,"quantity":5,"price":59.99}]'),
         ('ORD-003', 'Global Solutions', '2024-01-14', 2340.00, 'Shipped', '[{"itemId":6,"quantity":10,"price":199.99}]'),
@@ -156,17 +168,31 @@ async function initDB() {
     const poCount = await client.query('SELECT COUNT(*) FROM purchase_orders');
     if (parseInt(poCount.rows[0].count) === 0) {
       await client.query(`
-        INSERT INTO purchase_orders (id, supplier, date, expected_date, total, status, items) VALUES 
+        INSERT INTO purchase_orders (id, supplier, date, expected_date, total, status, items) VALUES
         ('PO-001', 'TechSupply Co', '2024-01-10', '2024-01-20', 2500.00, 'Received', '[{"itemId":1,"quantity":100,"cost":15.00}]'),
         ('PO-002', 'CableWorld', '2024-01-12', '2024-01-22', 1500.00, 'Pending', '[{"itemId":3,"quantity":200,"cost":5.00}]'),
         ('PO-003', 'Office Furnishings', '2024-01-14', '2024-01-24', 3800.00, 'Shipped', '[{"itemId":6,"quantity":20,"cost":95.00}]');
       `);
     }
 
+    // Seed demo user with bcrypt-hashed password
     const userCount = await client.query('SELECT COUNT(*) FROM users');
     if (parseInt(userCount.rows[0].count) === 0) {
-      await client.query(`INSERT INTO users (email, password, name) VALUES ('demo@gorecory.com', 'demo123', 'Admin User');`);
+      const demoHash = await bcrypt.hash('demo123', 10);
+      await client.query(
+        'INSERT INTO users (email, password, name) VALUES ($1, $2, $3)',
+        ['demo@gorecory.com', demoHash, 'Admin User']
+      );
     }
+
+    // Idempotent status restamp: normalize all items.status from quantity vs reorder_level
+    await client.query(`
+      UPDATE items SET status = CASE
+        WHEN quantity = 0 THEN 'Out of Stock'
+        WHEN quantity < reorder_level THEN 'Low Stock'
+        ELSE 'In Stock'
+      END;
+    `);
 
     console.log('Database initialized successfully');
   } catch (err) {
@@ -182,36 +208,87 @@ function getStatus(quantity, reorderLevel) {
   return 'In Stock';
 }
 
-// Dashboard Stats
+// ===== AUTH =====
+app.post('/api/register', async (req, res) => {
+  try {
+    const { name, email, password } = req.body || {};
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'Name, email and password are required' });
+    }
+    const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    if (existing.rows[0]) {
+      return res.status(409).json({ error: 'An account with this email already exists' });
+    }
+    const hash = await bcrypt.hash(password, 10);
+    const result = await pool.query(
+      'INSERT INTO users (email, password, name) VALUES ($1, $2, $3) RETURNING id, email, name',
+      [email, hash, name]
+    );
+    const user = result.rows[0];
+    res.json({ success: true, token: 'demo-token-123', user: { name: user.name, email: user.email } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/login', async (req, res) => {
+  try {
+    const { email, password } = req.body || {};
+    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const row = result.rows[0];
+    if (!row) return res.status(401).json({ error: 'Invalid credentials' });
+
+    let ok = false;
+    if (isBcryptHash(row.password)) {
+      ok = await bcrypt.compare(password, row.password);
+    } else if (row.password === password) {
+      // Legacy plain-text: verify then auto-upgrade to bcrypt hash
+      ok = true;
+      try {
+        const newHash = await bcrypt.hash(password, 10);
+        await pool.query('UPDATE users SET password = $1 WHERE id = $2', [newHash, row.id]);
+      } catch (e) {
+        console.error('Failed to upgrade legacy password:', e);
+      }
+    }
+
+    if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
+    res.json({ success: true, token: 'demo-token-123', user: { name: row.name, email: row.email } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ===== Dashboard Stats =====
 app.get('/api/stats', async (req, res) => {
   try {
     const items = await pool.query('SELECT quantity, price, reorder_level FROM items');
-    const orders = await pool.query('SELECT total FROM orders');
+    const orders = await pool.query('SELECT total, status FROM orders');
     const customers = await pool.query('SELECT COUNT(*) as count FROM customers');
-    
+
     const totalItems = items.rows.reduce((sum, i) => sum + i.quantity, 0);
-    const totalValue = items.rows.reduce((sum, i) => sum + (i.quantity * i.price), 0);
+    const totalValue = items.rows.reduce((sum, i) => sum + (i.quantity * parseFloat(i.price)), 0);
     const lowStockItems = items.rows.filter(i => i.quantity < i.reorder_level).length;
     const outOfStock = items.rows.filter(i => i.quantity === 0).length;
     const totalOrders = orders.rows.length;
     const pendingOrders = orders.rows.filter(o => o.status === 'Pending' || o.status === 'Processing').length;
     const revenue = orders.rows.reduce((sum, o) => sum + parseFloat(o.total), 0);
-    
+
     res.json({ totalItems, totalValue, lowStockItems, outOfStock, totalOrders, pendingOrders, revenue, totalCustomers: parseInt(customers.rows[0].count) });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Items
+// ===== Items =====
 app.get('/api/items', async (req, res) => {
   try {
     const { category, search, status } = req.query;
     let query = 'SELECT * FROM items WHERE 1=1';
     const params = [];
-    
+
     if (category) { params.push(category); query += ` AND category = $${params.length}`; }
     if (status) { params.push(status); query += ` AND status = $${params.length}`; }
     if (search) { params.push(`%${search}%`); query += ` AND (name ILIKE $${params.length} OR sku ILIKE $${params.length})`; }
-    
+
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -226,12 +303,12 @@ app.get('/api/items/:id', async (req, res) => {
 
 app.post('/api/items', async (req, res) => {
   try {
-    const { name, sku, quantity, price, cost, location, category, supplier, reorderLevel } = req.body;
+    const { name, sku, quantity, price, cost, location, category, supplier, reorderLevel, mfgDate, expiryDate } = req.body;
     const status = getStatus(quantity, reorderLevel || 50);
     const result = await pool.query(
-      `INSERT INTO items (name, sku, quantity, price, cost, status, location, category, supplier, reorder_level, last_updated) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_DATE) RETURNING *`,
-      [name, sku, quantity, price, cost || 0, status, location, category, supplier, reorderLevel || 50]
+      `INSERT INTO items (name, sku, quantity, price, cost, status, location, category, supplier, reorder_level, mfg_date, expiry_date, last_updated)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, CURRENT_DATE) RETURNING *`,
+      [name, sku, quantity, price, cost || 0, status, location, category, supplier, reorderLevel || 50, mfgDate || null, expiryDate || null]
     );
     res.json(result.rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -239,11 +316,11 @@ app.post('/api/items', async (req, res) => {
 
 app.put('/api/items/:id', async (req, res) => {
   try {
-    const { name, sku, quantity, price, cost, location, category, supplier, reorderLevel } = req.body;
+    const { name, sku, quantity, price, cost, location, category, supplier, reorderLevel, mfgDate, expiryDate } = req.body;
     const status = getStatus(quantity, reorderLevel || 50);
     const result = await pool.query(
-      `UPDATE items SET name=$1, sku=$2, quantity=$3, price=$4, cost=$5, status=$6, location=$7, category=$8, supplier=$9, reorder_level=$10, last_updated=CURRENT_DATE WHERE id=$11 RETURNING *`,
-      [name, sku, quantity, price, cost, status, location, category, supplier, reorderLevel || 50, req.params.id]
+      `UPDATE items SET name=$1, sku=$2, quantity=$3, price=$4, cost=$5, status=$6, location=$7, category=$8, supplier=$9, reorder_level=$10, mfg_date=$11, expiry_date=$12, last_updated=CURRENT_DATE WHERE id=$13 RETURNING *`,
+      [name, sku, quantity, price, cost, status, location, category, supplier, reorderLevel || 50, mfgDate || null, expiryDate || null, req.params.id]
     );
     result.rows[0] ? res.json(result.rows[0]) : res.status(404).json({ error: 'Not found' });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -256,7 +333,7 @@ app.delete('/api/items/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Categories
+// ===== Categories =====
 app.get('/api/categories', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM categories');
@@ -271,7 +348,7 @@ app.post('/api/categories', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Suppliers
+// ===== Suppliers =====
 app.get('/api/suppliers', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM suppliers');
@@ -315,16 +392,16 @@ app.delete('/api/suppliers/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Orders
+// ===== Orders =====
 app.get('/api/orders', async (req, res) => {
   try {
     const { status, customer } = req.query;
     let query = 'SELECT * FROM orders WHERE 1=1';
     const params = [];
-    
+
     if (status) { params.push(status); query += ` AND status = $${params.length}`; }
     if (customer) { params.push(`%${customer}%`); query += ` AND customer ILIKE $${params.length}`; }
-    
+
     const result = await pool.query(query + ' ORDER BY date DESC', params);
     res.json(result.rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -357,7 +434,7 @@ app.put('/api/orders/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Warehouses
+// ===== Warehouses =====
 app.get('/api/warehouses', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM warehouses');
@@ -401,7 +478,7 @@ app.delete('/api/warehouses/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Customers
+// ===== Customers =====
 app.get('/api/customers', async (req, res) => {
   try {
     const { search } = req.query;
@@ -449,7 +526,7 @@ app.delete('/api/customers/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Purchase Orders
+// ===== Purchase Orders =====
 app.get('/api/purchase-orders', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM purchase_orders ORDER BY date DESC');
@@ -477,7 +554,7 @@ app.put('/api/purchase-orders/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Reports
+// ===== Reports =====
 app.get('/api/reports/sales', async (req, res) => {
   res.json([
     { month: 'Aug', revenue: 12500, orders: 45 },
@@ -492,16 +569,16 @@ app.get('/api/reports/sales', async (req, res) => {
 app.get('/api/reports/inventory-value', async (req, res) => {
   try {
     const items = await pool.query('SELECT category, location, quantity, price FROM items');
-    
+
     const byCategory = {};
     const byWarehouse = {};
-    
+
     items.rows.forEach(item => {
-      const value = item.quantity * item.price;
+      const value = item.quantity * parseFloat(item.price);
       byCategory[item.category] = (byCategory[item.category] || 0) + value;
       byWarehouse[item.location] = (byWarehouse[item.location] || 0) + value;
     });
-    
+
     res.json({
       byCategory: Object.entries(byCategory).map(([category, value]) => ({ category, value })),
       byWarehouse: Object.entries(byWarehouse).map(([warehouse, value]) => ({ warehouse, value }))
@@ -523,22 +600,129 @@ app.get('/api/reports/low-stock', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Auth
-app.post('/api/login', async (req, res) => {
+app.get('/api/reports/near-expiry', async (req, res) => {
   try {
-    const { email, password } = req.body;
-    const result = await pool.query('SELECT * FROM users WHERE email = $1 AND password = $2', [email, password]);
-    
-    if (result.rows[0]) {
-      res.json({ success: true, token: 'demo-token-123', user: { name: result.rows[0].name, email: result.rows[0].email } });
-    } else {
-      res.status(401).json({ error: 'Invalid credentials' });
-    }
+    const days = parseInt(req.query.days) || 15;
+    const result = await pool.query(
+      `SELECT * FROM items
+       WHERE expiry_date IS NOT NULL
+         AND expiry_date >= CURRENT_DATE
+         AND expiry_date <= CURRENT_DATE + ($1 || ' days')::interval
+       ORDER BY expiry_date ASC`,
+      [days]
+    );
+    res.json(result.rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ===== Alerts =====
+app.get('/api/alerts/messages', async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 15;
+    const lowStock = await pool.query('SELECT id, name, sku, quantity, reorder_level FROM items WHERE quantity < reorder_level ORDER BY quantity ASC');
+    const nearExpiry = await pool.query(
+      `SELECT id, name, sku, expiry_date FROM items
+       WHERE expiry_date IS NOT NULL
+         AND expiry_date >= CURRENT_DATE
+         AND expiry_date <= CURRENT_DATE + ($1 || ' days')::interval
+       ORDER BY expiry_date ASC`,
+      [days]
+    );
+
+    const messages = [];
+    lowStock.rows.forEach(i => {
+      messages.push({
+        type: 'low_stock',
+        title: `${i.name} low stock`,
+        detail: `Only ${i.quantity} left (reorder at ${i.reorder_level})`,
+        sku: i.sku
+      });
+    });
+    nearExpiry.rows.forEach(i => {
+      const d = new Date(i.expiry_date);
+      const today = new Date(); today.setHours(0,0,0,0);
+      const daysLeft = Math.ceil((d - today) / (1000 * 60 * 60 * 24));
+      messages.push({
+        type: 'near_expiry',
+        title: `${i.name} expiring soon`,
+        detail: `Expires in ${daysLeft} day(s) on ${d.toISOString().slice(0,10)}`,
+        sku: i.sku
+      });
+    });
+
+    res.json({
+      days,
+      lowStock: lowStock.rows,
+      nearExpiry: nearExpiry.rows,
+      messages,
+      total: messages.length
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/alerts/email', async (req, res) => {
+  try {
+    const days = parseInt((req.body && req.body.days) || req.query.days) || 15;
+    const to = (req.body && req.body.to) || process.env.ALERT_EMAIL_TO;
+
+    if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
+      return res.status(500).json({ error: 'SMTP is not configured. Please set SMTP_HOST, SMTP_USER, SMTP_PASS in backend environment.' });
+    }
+    if (!to) {
+      return res.status(400).json({ error: 'Recipient email missing. Provide "to" in request or set ALERT_EMAIL_TO.' });
+    }
+
+    const lowStock = await pool.query('SELECT name, sku, quantity, reorder_level FROM items WHERE quantity < reorder_level ORDER BY quantity ASC');
+    const nearExpiry = await pool.query(
+      `SELECT name, sku, expiry_date FROM items
+       WHERE expiry_date IS NOT NULL
+         AND expiry_date >= CURRENT_DATE
+         AND expiry_date <= CURRENT_DATE + ($1 || ' days')::interval
+       ORDER BY expiry_date ASC`,
+      [days]
+    );
+
+    const rows = [];
+    lowStock.rows.forEach(i => rows.push(`<tr><td>Low Stock</td><td>${i.name}</td><td>${i.sku}</td><td>Qty ${i.quantity} / Reorder ${i.reorder_level}</td></tr>`));
+    nearExpiry.rows.forEach(i => rows.push(`<tr><td>Near Expiry</td><td>${i.name}</td><td>${i.sku}</td><td>Expires ${new Date(i.expiry_date).toISOString().slice(0,10)}</td></tr>`));
+
+    const html = `
+      <div style="font-family:Arial,sans-serif;color:#1e293b">
+        <h2>Gorecory Inventory Alerts</h2>
+        <p>Summary for the next <b>${days}</b> days.</p>
+        <p><b>Low stock items:</b> ${lowStock.rows.length}<br/>
+           <b>Items near expiry:</b> ${nearExpiry.rows.length}</p>
+        <table border="1" cellspacing="0" cellpadding="8" style="border-collapse:collapse;width:100%">
+          <thead style="background:#f1f5f9"><tr><th>Type</th><th>Item</th><th>SKU</th><th>Detail</th></tr></thead>
+          <tbody>${rows.join('') || '<tr><td colspan="4">No alerts</td></tr>'}</tbody>
+        </table>
+      </div>`;
+
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT) || 587,
+      secure: (parseInt(process.env.SMTP_PORT) || 587) === 465,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+      }
+    });
+
+    const info = await transporter.sendMail({
+      from: process.env.ALERT_EMAIL_FROM || process.env.SMTP_USER,
+      to,
+      subject: `Gorecory Inventory Alerts (${lowStock.rows.length} low stock, ${nearExpiry.rows.length} near expiry)`,
+      html
+    });
+
+    res.json({ success: true, messageId: info.messageId, to, lowStockCount: lowStock.rows.length, nearExpiryCount: nearExpiry.rows.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 initDB().then(() => {
-  app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on http://0.0.0.0:${PORT}`);
   });
 });

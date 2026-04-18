@@ -117,7 +117,7 @@ function LoginPage() {
           </div>
 
           <p className="signup-link">
-            Don't have an account? <Link to="/dashboard">Sign up free</Link>
+            Don't have an account? <Link to="/signup" data-testid="login-signup-link">Sign up free</Link>
           </p>
         </div>
 

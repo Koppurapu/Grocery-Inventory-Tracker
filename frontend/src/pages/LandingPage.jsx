@@ -11,13 +11,11 @@ function LandingPage() {
         </div>
         <div className="nav-links">
           <a href="#features">Features</a>
-          <a href="#solutions">Solutions</a>
-          <a href="#pricing">Pricing</a>
           <a href="#integrations">Integrations</a>
         </div>
         <div className="nav-actions">
-          <Link to="/login" className="btn-login">Login</Link>
-          <Link to="/dashboard" className="btn-primary">Get Started</Link>
+          <Link to="/login" className="btn-login" data-testid="nav-login-link">Login</Link>
+          <Link to="/signup" className="btn-primary" data-testid="nav-get-started-btn">Get Started</Link>
         </div>
       </nav>
 
@@ -26,7 +24,7 @@ function LandingPage() {
           <h1>Engineered to handle all your inventory needs</h1>
           <p>Your complete inventory management software to track inventory, streamline sales, fulfill orders, and oversee warehouses from a single window.</p>
           <div className="hero-cta">
-            <Link to="/dashboard" className="btn-primary btn-large">Create your free account</Link>
+            <Link to="/signup" className="btn-primary btn-large" data-testid="hero-signup-btn">Create your free account</Link>
             <button className="btn-secondary">Talk to sales</button>
           </div>
           <p className="hero-trust">Trusted by 10,000+ businesses worldwide</p>
@@ -34,24 +32,13 @@ function LandingPage() {
         <div className="hero-image">
           <div className="dashboard-preview">
             <div className="preview-header">
-              <div className="preview-dots">
-                <span></span><span></span><span></span>
-              </div>
+              <div className="preview-dots"><span></span><span></span><span></span></div>
             </div>
             <div className="preview-content">
               <div className="preview-stats">
-                <div className="stat-card">
-                  <span className="stat-label">Total Items</span>
-                  <span className="stat-value">2,847</span>
-                </div>
-                <div className="stat-card">
-                  <span className="stat-label">Orders Today</span>
-                  <span className="stat-value">156</span>
-                </div>
-                <div className="stat-card">
-                  <span className="stat-label">Revenue</span>
-                  <span className="stat-value">$24,589</span>
-                </div>
+                <div className="stat-card"><span className="stat-label">Total Items</span><span className="stat-value">2,847</span></div>
+                <div className="stat-card"><span className="stat-label">Orders Today</span><span className="stat-value">156</span></div>
+                <div className="stat-card"><span className="stat-label">Revenue</span><span className="stat-value">$24,589</span></div>
               </div>
               <div className="preview-chart">
                 <div className="chart-bar" style={{height: '60%'}}></div>
@@ -73,9 +60,7 @@ function LandingPage() {
         </div>
         <div className="features-container">
           <div className="feature-card">
-            <div className="feature-icon inventory-icon">
-              <Package />
-            </div>
+            <div className="feature-icon inventory-icon"><Package /></div>
             <h3>Inventory</h3>
             <p>Tracking and controlling your inventory is a lot easier with complete inventory software that puts an end to stock mismatches.</p>
             <ul className="feature-list">
@@ -85,9 +70,7 @@ function LandingPage() {
             </ul>
           </div>
           <div className="feature-card">
-            <div className="feature-icon order-icon">
-              <ShoppingCart />
-            </div>
+            <div className="feature-icon order-icon"><ShoppingCart /></div>
             <h3>Order</h3>
             <p>Power your online sales with comprehensive software to manage inventory and dedicate more time to growing your business.</p>
             <ul className="feature-list">
@@ -97,9 +80,7 @@ function LandingPage() {
             </ul>
           </div>
           <div className="feature-card">
-            <div className="feature-icon warehouse-icon">
-              <Warehouse />
-            </div>
+            <div className="feature-icon warehouse-icon"><Warehouse /></div>
             <h3>Warehouse</h3>
             <p>Manage different locations with ease and eliminate the need for multiple spreadsheets.</p>
             <ul className="feature-list">
@@ -113,11 +94,7 @@ function LandingPage() {
 
       <section className="benefits-section">
         <div className="benefit-card">
-          <div className="benefit-image">
-            <div className="benefit-placeholder">
-              <Package size={48} />
-            </div>
-          </div>
+          <div className="benefit-image"><div className="benefit-placeholder"><Package size={48} /></div></div>
           <div className="benefit-content">
             <h3>Track effectively</h3>
             <h4>Complete visibility for your items</h4>
@@ -125,11 +102,7 @@ function LandingPage() {
           </div>
         </div>
         <div className="benefit-card reverse">
-          <div className="benefit-image">
-            <div className="benefit-placeholder">
-              <Warehouse size={48} />
-            </div>
-          </div>
+          <div className="benefit-image"><div className="benefit-placeholder"><Warehouse size={48} /></div></div>
           <div className="benefit-content">
             <h3>Scale efficiently</h3>
             <h4>Warehouse management</h4>
@@ -137,11 +110,7 @@ function LandingPage() {
           </div>
         </div>
         <div className="benefit-card">
-          <div className="benefit-image">
-            <div className="benefit-placeholder">
-              <Users size={48} />
-            </div>
-          </div>
+          <div className="benefit-image"><div className="benefit-placeholder"><Users size={48} /></div></div>
           <div className="benefit-content">
             <h3>Collaborate better</h3>
             <h4>Dedicated customer portal</h4>
@@ -154,9 +123,7 @@ function LandingPage() {
         <h2>Your next-gen inventory software</h2>
         <div className="capabilities-grid">
           <div className="capability-card">
-            <div className="capability-icon">
-              <Package />
-            </div>
+            <div className="capability-icon"><Package /></div>
             <h3>Sell more with assemblies</h3>
             <ul>
               <li>Classify items by size, color, brand</li>
@@ -165,9 +132,7 @@ function LandingPage() {
             </ul>
           </div>
           <div className="capability-card">
-            <div className="capability-icon">
-              <TrendingUp />
-            </div>
+            <div className="capability-icon"><TrendingUp /></div>
             <h3>Accelerate sales across channels</h3>
             <ul>
               <li>Integrate with Shopify, Amazon, eBay, Etsy</li>
@@ -176,9 +141,7 @@ function LandingPage() {
             </ul>
           </div>
           <div className="capability-card">
-            <div className="capability-icon">
-              <CreditCard />
-            </div>
+            <div className="capability-icon"><CreditCard /></div>
             <h3>Get paid faster</h3>
             <ul>
               <li>Integrate with PayPal, Stripe, and 10+ gateways</li>
@@ -187,9 +150,7 @@ function LandingPage() {
             </ul>
           </div>
           <div className="capability-card">
-            <div className="capability-icon">
-              <Truck />
-            </div>
+            <div className="capability-icon"><Truck /></div>
             <h3>Pack and track all your orders</h3>
             <ul>
               <li>Track package movement seamlessly</li>
@@ -198,9 +159,7 @@ function LandingPage() {
             </ul>
           </div>
           <div className="capability-card">
-            <div className="capability-icon">
-              <BarChart3 />
-            </div>
+            <div className="capability-icon"><BarChart3 /></div>
             <h3>Get real-time business insights</h3>
             <ul>
               <li>Analyze sales channel performance</li>
@@ -218,30 +177,21 @@ function LandingPage() {
             <p>"We have been able to simplify our in-house inventory management with increased efficiency and flexibility."</p>
             <div className="testimonial-author">
               <div className="author-avatar">P</div>
-              <div className="author-info">
-                <strong>Priyal Bafna</strong>
-                <span>Senior Manager, Rapido Bike</span>
-              </div>
+              <div className="author-info"><strong>Priyal Bafna</strong><span>Senior Manager, Rapido Bike</span></div>
             </div>
           </div>
           <div className="testimonial-card">
             <p>"InventoryPro has been amazing for us in collecting all of our online and offline sales in one place."</p>
             <div className="testimonial-author">
               <div className="author-avatar">A</div>
-              <div className="author-info">
-                <strong>Adam Petyt</strong>
-                <span>Director, Element Packaging</span>
-              </div>
+              <div className="author-info"><strong>Adam Petyt</strong><span>Director, Element Packaging</span></div>
             </div>
           </div>
           <div className="testimonial-card">
             <p>"Managing stocks and returns across multiple warehouses has been easier than expected."</p>
             <div className="testimonial-author">
               <div className="author-avatar">P</div>
-              <div className="author-info">
-                <strong>Patrick Fletcher</strong>
-                <span>Director, Alloygator</span>
-              </div>
+              <div className="author-info"><strong>Patrick Fletcher</strong><span>Director, Alloygator</span></div>
             </div>
           </div>
         </div>
@@ -249,25 +199,11 @@ function LandingPage() {
 
       <section className="integrations-section" id="integrations">
         <h2>Integrations to help you scale</h2>
-        <p>Connect your favorite apps and gather all your information in one place</p>
-        <div className="integrations-grid">
-          <div className="integration-logo">Shopify</div>
-          <div className="integration-logo">Amazon</div>
-          <div className="integration-logo">eBay</div>
-          <div className="integration-logo">Etsy</div>
-          <div className="integration-logo">WooCommerce</div>
-          <div className="integration-logo">Stripe</div>
-          <div className="integration-logo">PayPal</div>
-          <div className="integration-logo">UPS</div>
-          <div className="integration-logo">FedEx</div>
-          <div className="integration-logo">QuickBooks</div>
-        </div>
       </section>
 
       <section className="cta-section">
         <h2>Powerful inventory management software</h2>
-        <p>Start your risk-free 14-day free trial today</p>
-        <Link to="/dashboard" className="btn-primary btn-large">Get Started</Link>
+        <Link to="/signup" className="btn-primary btn-large" data-testid="cta-signup-btn">Get Started</Link>
       </section>
 
       <footer className="footer">
@@ -301,7 +237,7 @@ function LandingPage() {
           </div>
         </div>
         <div className="footer-bottom">
-          <p>&copy; 2024 InventoryPro. All rights reserved.</p>
+          <p data-testid="footer-copy">© 2026 Gorecory Inventory Tracker. All rights reserved.</p>
           <div className="social-links">
             <a href="#">Twitter</a>
             <a href="#">LinkedIn</a>
