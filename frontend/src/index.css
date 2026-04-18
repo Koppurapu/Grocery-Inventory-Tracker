@@ -2314,8 +2314,8 @@ button {
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-.sidebar.closed .sidebar-brand { justify-content: center; }
-.sidebar.closed .sidebar-brand span { display: none; }
+.sidebar.closed .sidebar-brand { display: none; }
+.sidebar.closed .sidebar-header { justify-content: center; padding: 16px 8px; }
 .sidebar-toggle {
   flex: 0 0 auto;
   width: 32px;
